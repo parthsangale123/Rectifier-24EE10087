@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rectifier bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E3E7EB; --panel:#F6F8F9; --ink:#1C262E; --ink-2:#56626C; --rule:#BCC6CE; --grid:#DCE2E7;
+  --dc:#1B5EA6; --cur:#A5650C; --ph-a:#8A4A28; --ph-b:#1C262E; --ph-c:#7D8992; --on:#1B5EA6; --gate:#C2410C;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#151B20; --panel:#1D252C; --ink:#E3E8EC; --ink-2:#9AA6B0; --rule:#34414B; --grid:#27323B;
+    --dc:#73ABEE; --cur:#E3A64B; --ph-a:#D18C60; --ph-b:#E3E8EC; --ph-c:#8996A1; --on:#73ABEE; --gate:#F28C4E;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151B20; --panel:#1D252C; --ink:#E3E8EC; --ink-2:#9AA6B0; --rule:#34414B; --grid:#27323B;
+  --dc:#73ABEE; --cur:#E3A64B; --ph-a:#D18C60; --ph-b:#E3E8EC; --ph-c:#8996A1; --on:#73ABEE; --gate:#F28C4E;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.45 Barlow,"Segoe UI",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding:24px 24px 16px;max-width:1440px;margin:0 auto}
+h1{font:700 32px/1 "Barlow Semi Condensed",Barlow,sans-serif;letter-spacing:-.01em;margin:0}
+.head p{margin:6px 0 0;color:var(--ink-2)}
+.seg{display:inline-flex;border:1.5px solid var(--ink);border-radius:999px;padding:3px;gap:2px}
+.seg button{font:600 15px "Barlow Semi Condensed",Barlow,sans-serif;border:0;background:transparent;color:var(--ink);padding:7px 18px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.seg.sm button{padding:4px 12px;font-size:14px}
+button:focus-visible,select:focus-visible,input:focus-visible,canvas:focus-visible{outline:2px solid var(--on);outline-offset:2px}
+.wrap{display:grid;grid-template-columns:286px minmax(0,1fr);gap:22px;padding:0 24px 36px;max-width:1440px;margin:0 auto}
+@media (max-width:900px){.wrap{grid-template-columns:1fr;padding:0 14px 28px}.head{padding:18px 14px 12px}}
+aside{display:flex;flex-direction:column;gap:22px}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+legend,.lbl{font:600 14px "Barlow Semi Condensed",Barlow,sans-serif;color:var(--ink-2);margin:0 0 8px;padding:0}
+.topo label{position:relative;display:block;padding:8px 12px 9px;border-left:3px solid var(--rule);cursor:pointer;border-radius:0 8px 8px 0}
+.topo label+label{margin-top:2px}
+.topo input{position:absolute;opacity:0;pointer-events:none}
+.topo label:has(input:checked){border-left-color:var(--on);background:var(--panel)}
+.topo label:has(input:focus-visible){outline:2px solid var(--on);outline-offset:1px}
+.topo strong{display:block;font:600 17px/1.2 "Barlow Semi Condensed",Barlow,sans-serif}
+.topo span{font-size:13px;color:var(--ink-2)}
+.param{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:2px 10px;margin-bottom:12px}
+.param output{font-weight:600}
+.param input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--on);margin:4px 0 0}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.check{display:flex;gap:9px;align-items:flex-start;margin-bottom:10px;cursor:pointer}
+.check input{accent-color:var(--on);margin-top:3px}
+.check small{display:block;color:var(--ink-2);font-size:13px}
+.off{opacity:.42;pointer-events:none}
+.hide{display:none!important}
+main{display:flex;flex-direction:column;gap:18px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+.schem{display:grid;grid-template-columns:minmax(0,1fr) 196px}
+@media (max-width:720px){.schem{grid-template-columns:1fr}}
+#schemBox svg{display:block;width:100%;height:auto;padding:12px 10px 4px}
+.live{border-left:1px solid var(--rule);padding:16px 18px;display:flex;flex-direction:column;gap:9px}
+@media (max-width:720px){.live{border-left:0;border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(3,1fr)}}
+.live span{display:block;font-size:12px;color:var(--ink-2)}
+.live b{font:600 19px/1.15 "Barlow Semi Condensed",Barlow,sans-serif}
+.caption{grid-column:1/-1;margin:0;padding:4px 18px 16px;color:var(--ink-2);font-size:14.5px;max-width:84ch}
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px 4px}
+.bar h2{font:600 18px "Barlow Semi Condensed",Barlow,sans-serif;margin:0 auto 0 0}
+.bar .hint{font-size:13px;color:var(--ink-2)}
+.btn{font:600 14px "Barlow Semi Condensed",Barlow,sans-serif;background:var(--ink);color:var(--panel);border:0;border-radius:999px;padding:6px 16px;cursor:pointer;min-width:72px}
+select{font:500 14px Barlow,sans-serif;background:var(--panel);color:var(--ink);border:1px solid var(--rule);border-radius:6px;padding:4px 6px}
+#scope{display:block;width:100%;touch-action:none;cursor:ew-resize}
+.metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+.metrics div{background:var(--panel);padding:10px 14px}
+@media (max-width:1100px){.metrics{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:620px){.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:420px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.metrics span{display:block;font-size:12.5px;color:var(--ink-2)}
+.metrics b{font:600 21px/1.2 "Barlow Semi Condensed",Barlow,sans-serif}
+.metrics b small{font-size:14px;font-weight:500;color:var(--ink-2)}
+.theory{margin:0;padding:0 2px;font-size:14.5px;color:var(--ink-2);max-width:90ch}
+.theory b{color:var(--ink);font-weight:600}
+.credit{max-width:1440px;margin:0 auto;padding:0 24px 28px;color:var(--ink-2);font-size:13.5px;border-top:1px solid var(--rule);padding-top:14px}
+.credit b{color:var(--ink);font-weight:600}
+@media (max-width:900px){.credit{padding:14px 14px 24px}}
+/* schematic */
+.w{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.j{fill:var(--ink)}
+.src{fill:var(--panel);stroke:var(--ink);stroke-width:1.6}
+.dev line,.dev polyline{stroke:var(--ink);stroke-width:1.6;fill:none;stroke-linecap:round}
+.dev polygon{fill:var(--panel);stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round;transition:fill .12s}
+.dev.on polygon{fill:var(--on);stroke:var(--on)}
+.dev.on line{stroke:var(--on)}
+.dev .gate{stroke:var(--gate);opacity:.5}
+.dev.fire .gate{opacity:1;stroke-width:3.2}
+.dl{font:600 13px Barlow,sans-serif;fill:var(--ink)}
+.dev.on .dl{fill:var(--on)}
+.sl{font:500 12px Barlow,sans-serif;fill:var(--ink-2)}
+.pl{font:600 14px Barlow,sans-serif;fill:var(--dc)}
+.flow{display:none}
+.flow.show{display:inline}
+.flow polyline{fill:none;stroke:var(--on);stroke-linejoin:round;stroke-linecap:round}
+.flow .h{stroke-width:9;stroke-opacity:.14}
+.flow .d{stroke-width:2.6;stroke-dasharray:2 11;animation:run .7s linear infinite}
+@keyframes run{to{stroke-dashoffset:-26}}
+@media (prefers-reduced-motion:reduce){.flow .d{animation:none}.dev polygon{transition:none}}
+</style>
+</head>
+<body>
+<header class="head">
+  <div>
+    <h1>Rectifier bench</h1>
+    <p>Schematics and steady-state waveforms for single- and three-phase rectifiers. By Parth Sangale, 24EE10087.</p>
+  </div>
+  <div class="seg" id="phaseSeg" role="group" aria-label="Supply phases">
+    <button data-p="1" aria-pressed="true">1-phase</button>
+    <button data-p="3" aria-pressed="false">3-phase</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside>
+    <fieldset class="topo">
+      <legend>Circuit</legend>
+      <label><input type="radio" name="topo" value="half"><strong>Half-wave</strong><span data-sub="half"></span></label>
+      <label><input type="radio" name="topo" value="full"><strong>Full-wave</strong><span data-sub="full"></span></label>
+      <label><input type="radio" name="topo" value="bridge" checked><strong>Diode bridge</strong><span data-sub="bridge"></span></label>
+      <label><input type="radio" name="topo" value="thy"><strong>Thyristor bridge</strong><span data-sub="thy"></span></label>
+    </fieldset>
+
+    <div>
+      <div class="lbl">Supply</div>
+      <div class="param"><label for="Vm">Peak phase voltage, Vm</label><output id="oVm"></output>
+        <input type="range" id="Vm" min="10" max="400" step="5" value="100"></div>
+      <div class="row"><span>Frequency</span>
+        <div class="seg sm" id="freq" role="group" aria-label="Frequency">
+          <button data-f="50" aria-pressed="true">50 Hz</button><button data-f="60" aria-pressed="false">60 Hz</button>
+        </div></div>
+    </div>
+
+    <div>
+      <div class="lbl">Load</div>
+      <div class="param"><label for="R">Resistance, R</label><output id="oR"></output>
+        <input type="range" id="R" min="1" max="100" step="0.5" value="10"></div>
+      <div class="param"><label for="L">Inductance, L</label><output id="oL"></output>
+        <input type="range" id="L" min="0" max="500" step="5" value="0"></div>
+      <label class="check"><input type="checkbox" id="fwd"><span>Freewheeling diode<small>Across the load; clamps vo at zero</small></span></label>
+    </div>
+
+    <div>
+      <div class="lbl">Control</div>
+      <label class="check" id="scrRow"><input type="checkbox" id="scr"><span>Use thyristors<small>Replace the diodes with SCRs</small></span></label>
+      <div class="param" id="alphaRow"><label for="alpha">Firing angle, α</label><output id="oA"></output>
+        <input type="range" id="alpha" min="0" max="180" step="1" value="30"></div>
+    </div>
+  </aside>
+
+  <main>
+    <section class="card">
+      <div class="schem">
+        <div id="schemBox" aria-label="Circuit schematic"></div>
+        <div class="live" aria-live="off">
+          <div><span>ωt</span><b id="lTh">0°</b></div>
+          <div><span>Conducting</span><b id="lOn">—</b></div>
+          <div><span id="lSrcL">vs</span><b id="lSrc">0 V</b></div>
+          <div><span>vo</span><b id="lVo">0 V</b></div>
+          <div><span>io</span><b id="lIo">0 A</b></div>
+          <div><span id="lDvL">vD1</span><b id="lDv">0 V</b></div>
+        </div>
+        <p class="caption" id="caption"></p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="bar">
+        <h2>Waveforms, two cycles</h2>
+        <span class="hint">Drag across the traces to move the cursor</span>
+        <button class="btn" id="play">Pause</button>
+        <label><span class="hint">Speed </span><select id="speed">
+          <option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option>
+        </select></label>
+      </div>
+      <canvas id="scope" tabindex="0" aria-label="Waveform plots. Use arrow keys to move the cursor."></canvas>
+    </section>
+
+    <section class="metrics" id="metrics"></section>
+    <p class="theory" id="theory"></p>
+  </main>
+</div>
+
+<footer class="credit">Developed by <b>Parth Sangale</b>, Roll No. <b>24EE10087</b></footer>
+
+<script>
+(()=>{
+const TAU=2*Math.PI, D2R=Math.PI/180, R3=Math.sqrt(3);
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const mod=(x,m)=>((x%m)+m)%m;
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const S={phase:1,topo:'bridge',scr:false,Vm:100,f:50,R:10,L:0,alpha:30,fwd:false,playing:!reduce,speed:1,cursor:0};
+let T=null, SIM=null, LAYOUT=null, lastKey='';
+
+const fmt=(v,d=1)=>{let s=(+v).toFixed(d); if(/^-0(\.0+)?$/.test(s)) s=s.slice(1); return s.replace('-','−');};
+
+const SUB={
+  1:{half:'One diode',full:'Centre-tapped transformer, two diodes',bridge:'Four diodes',thy:'Four SCRs, firing angle α'},
+  3:{half:'Three-pulse midpoint, three diodes',full:'Six-pulse midpoint (hexaphase star)',bridge:'Six-pulse bridge, six diodes',thy:'Six SCRs, firing angle α'}
+};
+const CAP={
+  mid1:'D1 conducts while it is forward-biased, so the load sees only the positive half-cycle. With inductance it keeps conducting past 180° until the load current reaches zero at the extinction angle β.',
+  mid2:'Each half of the centre-tapped secondary feeds the load through its own diode, so the output repeats every 180°. A blocking diode sees both halves in series, so its PIV is 2Vm.',
+  mid3:'The diode on the most positive phase conducts for 120°. The output never falls below Vm/2 and ripples at 3f.',
+  mid6:'Six windings 60° apart feed a common cathode bus. Each diode conducts for 60° and the output ripples at 6f.',
+  b1:'One diagonal pair conducts on each half-cycle, so the load sees |vs|. Each device blocks Vm.',
+  b3:'The upper device on the most positive phase and the lower device on the most negative phase conduct, so vo follows the highest line voltage. Each device conducts for 120°; ripple is at 6f.'
+};
+const CAP_CTRL={
+  mid1:'T1 is fired α after the positive zero crossing.',
+  mid2:'Each thyristor is fired α after its anode becomes positive.',
+  mid3:'Each thyristor is fired α after its natural commutation point (30° after its phase crosses zero).',
+  mid6:'Each thyristor is fired α after its natural commutation point.',
+  b1:'T1–T2 fire at α and T3–T4 at 180° + α. With enough inductance the current stays continuous and vo swings negative until the next pair fires.',
+  b3:'Thyristors fire in sequence T1 to T6, 60° apart, each α after its natural commutation point. Beyond α = 90° with a continuous current the bridge would invert, which needs a source in the load.'
+};
+
+/* ---------- topology ---------- */
+function buildTopo(){
+  const ph=S.phase,t=S.topo,Vm=S.Vm;
+  const controlled=t==='thy'||((t==='half'||t==='full')&&S.scr);
+  const P=controlled?'T':'D';
+  const o={controlled,P};
+  if(t==='half'||t==='full'){
+    const n=ph===1?(t==='half'?1:2):(t==='half'?3:6);
+    const cfg={
+      1:{phis:[0],lab:['vs'],col:['a'],dash:[0]},
+      2:{phis:[0,Math.PI],lab:['v1','v2'],col:['a','c'],dash:[0,0]},
+      3:{phis:[0,TAU/3,2*TAU/3],lab:['va','vb','vc'],col:['a','b','c'],dash:[0,0,0]},
+      6:{phis:[0,1,2,3,4,5].map(k=>k*Math.PI/3),lab:['+va','−vc','+vb','−va','+vc','−vb'],col:['a','c','b','a','c','b'],dash:[0,1,0,1,0,1]}
+    }[n];
+    Object.assign(o,{key:'mid'+n,n,bridge:false,p:n,
+      src:cfg.phis.map((phi,k)=>({label:cfg.lab[k],A:Vm,phi,color:cfg.col[k],dash:cfg.dash[k]})),
+      pairs:cfg.phis.map((phi,k)=>({A:Vm,phi,start:n===1?0:phi+Math.PI/2-Math.PI/n,dev:[P+(k+1)],gates:[P+(k+1)],up:k})),
+      Vdc0:{1:Vm/Math.PI,2:2*Vm/Math.PI,3:3*R3*Vm/(2*Math.PI),6:3*Vm/Math.PI}[n]});
+  }else if(ph===1){
+    Object.assign(o,{key:'b1',bridge:true,p:2,
+      src:[{label:'vs',A:Vm,phi:0,color:'a',dash:0}],
+      phaseV:th=>{const v=Vm*Math.sin(th)/2;return[v,-v];},
+      pairs:[{A:Vm,phi:0,start:0,dev:[P+1,P+2],gates:[P+1,P+2],up:0,lo:1},
+             {A:Vm,phi:Math.PI,start:Math.PI,dev:[P+3,P+4],gates:[P+3,P+4],up:1,lo:0}],
+      Vdc0:2*Vm/Math.PI});
+  }else{
+    const upN=[1,3,5],loN=[4,6,2],seq=[[0,1],[0,2],[1,2],[1,0],[2,0],[2,1]];
+    Object.assign(o,{key:'b3',bridge:true,p:6,upN,loN,
+      src:['va','vb','vc'].map((l,k)=>({label:l,A:Vm,phi:k*TAU/3,color:'abc'[k],dash:0})),
+      phaseV:th=>[0,1,2].map(k=>Vm*Math.sin(th-k*TAU/3)),
+      pairs:seq.map(([u,l],k)=>({A:R3*Vm,phi:-Math.PI/6+k*Math.PI/3,start:Math.PI/6+k*Math.PI/3,
+        dev:[P+upN[u],P+loN[l]],gates:[P+(k+1)],up:u,lo:l})),
+      Vdc0:3*R3*Vm/Math.PI});
+  }
+  o.ref=o.pairs[0].dev[0];
+  return o;
+}
+
+/* ---------- simulation ---------- */
+function simulate(T){
+  const N=1440,dth=TAU/N,w=TAU*S.f,dt=dth/w,R=S.R,L=S.L/1000;
+  const a=T.controlled?S.alpha*D2R:0;
+  const pr=T.pairs,np=pr.length;
+  const fires=pr.map(p=>mod(p.start+a,TAU));
+  const V=(k,th)=>pr[k].A*Math.sin(th-pr[k].phi);
+  const decay=L>0?Math.exp(-R*dt/L):0;
+  const fwd=S.fwd;
+  let th=0,act=-1,fw=false,i=0,vo=0;
+  const gate=new Int16Array(np),PW=Math.round(N/36); // 10° gate pulse
+  if(L>0){
+    const est=T.Vdc0*Math.cos(a);
+    if(est>0){i=est/R;let best=0,be=1e9;fires.forEach((f,k)=>{const e=mod(-f,TAU);if(e<be){be=e;best=k;}});act=best;}
+  }
+  function step(){
+    const t1=th; th+=dth;
+    for(let k=0;k<np;k++){
+      const f=fires[k];
+      if(Math.floor((th-f)/TAU)>Math.floor((t1-f)/TAU))gate[k]=PW;
+      if(gate[k]>0){
+        gate[k]--;
+        if(act!==k){
+          const v=V(k,th), ref=act>=0?V(act,th):0;
+          if(act<0?v>1e-9:v>=ref-1e-9){act=k;fw=false;}
+        }
+      }
+    }
+    vo=0;
+    if(act>=0){vo=V(act,th);if(fwd&&vo<0){act=-1;fw=true;vo=0;}}
+    if(L===0){i=vo/R;fw=false;if(i<0){i=0;act=-1;vo=0;}}
+    else{const ss=vo/R;i=ss+(i-ss)*decay;if(i<=1e-12){i=0;act=-1;fw=false;vo=0;}}
+  }
+  const tol=1e-6*Math.max(1,S.Vm/R);
+  for(let c=0;c<800;c++){const i0=i;for(let s=0;s<N;s++)step();if(c>=1&&Math.abs(i-i0)<tol)break;}
+
+  const M=2*N;
+  const VO=new Float32Array(M),IO=new Float32Array(M),VD=new Float32Array(M),IA=new Float32Array(M),ACT=new Int8Array(M),FW=new Uint8Array(M);
+  const SRC=T.src.map(()=>new Float32Array(M)),CAND=pr.map(()=>new Float32Array(M));
+  for(let j=0;j<M;j++){
+    step();
+    VO[j]=vo;IO[j]=i;ACT[j]=act;FW[j]=fw?1:0;
+    if(!T.bridge){VD[j]=V(0,th)-vo;IA[j]=act===0?i:0;}
+    else{const pv=T.phaseV(th);const vP=act>=0?pv[pr[act].up]:0;VD[j]=pv[0]-vP;
+      IA[j]=act>=0?i*((pr[act].up===0)-(pr[act].lo===0)):0;}
+    T.src.forEach((s,q)=>SRC[q][j]=s.A*Math.sin(th-s.phi));
+    for(let q=0;q<np;q++)CAND[q][j]=V(q,th);
+  }
+  let sv=0,sv2=0,si=0,si2=0,zeros=0,cond=0,vmax=-1e9,vmin=1e9,piv=0;
+  const zt=1e-6*Math.max(1,S.Vm/R);
+  for(let j=N;j<M;j++){
+    const v=VO[j],c=IO[j];
+    sv+=v;sv2+=v*v;si+=c;si2+=c*c;
+    if(c<zt)zeros++;
+    if(v>vmax)vmax=v;if(v<vmin)vmin=v;
+    if(ACT[j]>=0&&pr[ACT[j]].dev.includes(T.ref))cond++;
+  }
+  for(let j=0;j<M;j++)if(-VD[j]>piv)piv=-VD[j];
+  const Vdc=sv/N,Vrms=Math.sqrt(sv2/N),Idc=si/N,Irms=Math.sqrt(si2/N);
+  const FF=Vdc>1e-6?Vrms/Vdc:NaN, RF=isFinite(FF)?Math.sqrt(Math.max(FF*FF-1,0)):NaN;
+  return {N,M,dth,fires,VO,IO,VD,IA,ACT,FW,SRC,CAND,Vdc,Vrms,Idc,Irms,FF,RF,piv,cont:zeros<=2,
+    condDeg:cond/N*360,vpp:vmax-vmin,alpha:a};
+}
+
+function vdcR(T,a){
+  const Vm=S.Vm,c=Math.cos;
+  switch(T.key){
+    case'mid1':return Vm*(1+c(a))/TAU;
+    case'mid2':case'b1':return Vm*(1+c(a))/Math.PI;
+    case'mid3':if(a>5*Math.PI/6)return 0;return a<=Math.PI/6?T.Vdc0*c(a):3*Vm/TAU*(1+c(a+Math.PI/6));
+    case'mid6':if(a>2*Math.PI/3)return 0;return a<=Math.PI/3?T.Vdc0*c(a):3*Vm/Math.PI*(1+c(a+Math.PI/3));
+    case'b3':if(a>2*Math.PI/3)return 0;return a<=Math.PI/3?T.Vdc0*c(a):3*R3*Vm/Math.PI*(1+c(a+Math.PI/3));
+  }
+}
+function formula(T,a,mode){
+  const deg=a/D2R;
+  const base={mid1:'Vm/π',mid2:'2Vm/π',b1:'2Vm/π',mid3:'3√3·Vm/2π',mid6:'3Vm/π',b3:'3√3·Vm/π'}[T.key];
+  if(!T.controlled)return 'Vdc = '+base;
+  if(mode==='C')return 'Vdc = ('+base+')·cos α';
+  switch(T.key){
+    case'mid1':return 'Vdc = (Vm/2π)(1 + cos α)';
+    case'mid2':case'b1':return 'Vdc = (Vm/π)(1 + cos α)';
+    case'mid3':return deg<=30?'Vdc = (3√3·Vm/2π)·cos α':'Vdc = (3Vm/2π)[1 + cos(α + 30°)]';
+    case'mid6':return deg<=60?'Vdc = (3Vm/π)·cos α':'Vdc = (3Vm/π)[1 + cos(α + 60°)]';
+    case'b3':return deg<=60?'Vdc = (3√3·Vm/π)·cos α':'Vdc = (3√3·Vm/π)[1 + cos(α + 60°)]';
+  }
+}
+
+/* ---------- schematic ---------- */
+const pts=p=>p.map(q=>q[0]+','+q[1]).join(' ');
+const wire=p=>`<polyline class="w" points="${pts(p)}"/>`;
+const dot=(x,y)=>`<circle class="j" cx="${x}" cy="${y}" r="3.3"/>`;
+const flow=(k,p)=>`<g class="flow" data-k="${k}"><polyline class="h" points="${pts(p)}"/><polyline class="d" points="${pts(p)}"/></g>`;
+function devSVG(x,y,ang,label,scr,lx,ly,anchor){
+  return `<g class="dev" data-l="${label}"><g transform="translate(${x} ${y}) rotate(${ang})">
+<line x1="-22" y1="0" x2="-9" y2="0"/><line x1="9" y1="0" x2="22" y2="0"/>
+<polygon points="-9,-10 -9,10 9,0"/><line x1="9" y1="-10" x2="9" y2="10"/>
+${scr?'<polyline class="gate" points="5,6 13,15 13,23"/>':''}</g>
+<text class="dl" x="${x+lx}" y="${y+ly}" text-anchor="${anchor}">${label}</text></g>`;
+}
+function srcSVG(x,y,r){
+  const a=r*.55,b=r*.9;
+  return `<circle class="src" cx="${x}" cy="${y}" r="${r}"/><path class="w" d="M${x-a} ${y} Q${x-a/2} ${y-b} ${x} ${y} Q${x+a/2} ${y+b} ${x+a} ${y}"/>`;
+}
+function resV(x,y){
+  const p=[[x,y-25],[x,y-18]];
+  for(let i=0;i<6;i++)p.push([x+(i%2?-7:7),y-15+i*6]);
+  p.push([x,y+18],[x,y+25]);
+  return wire(p);
+}
+const indV=(x,y)=>`<path class="w" d="M${x} ${y-25} v5 a5 5 0 0 1 0 10 a5 5 0 0 1 0 10 a5 5 0 0 1 0 10 a5 5 0 0 1 0 10 v5"/>`;
+
+function loadSVG(xL,yTop,yBot,yR,yLd){
+  let w='',dv='';
+  w+=wire([[xL,yTop],[xL,yR-25]]);
+  dv+=resV(xL,yR)+`<text class="sl" x="${xL+13}" y="${yR+4}">R = ${fmt(S.R,1)} Ω</text>`;
+  if(S.L>0){w+=wire([[xL,yR+25],[xL,yLd-25]])+wire([[xL,yLd+25],[xL,yBot]]);
+    dv+=indV(xL,yLd)+`<text class="sl" x="${xL+13}" y="${yLd+4}">L = ${S.L} mH</text>`;}
+  else w+=wire([[xL,yR+25],[xL,yBot]]);
+  const mid=(yTop+yBot)/2;
+  dv+=`<text class="pl" x="${xL-12}" y="${yTop+22}" text-anchor="end">+</text><text class="pl" x="${xL-12}" y="${mid+5}" text-anchor="end">vo</text><text class="pl" x="${xL-12}" y="${yBot-9}" text-anchor="end">−</text>`;
+  return {w,dv};
+}
+function fwdSVG(xF,xL,yTop,yBot){
+  if(!S.fwd)return{w:'',d:'',dv:'',fl:''};
+  const c=(yTop+yBot)/2+12;
+  return{w:wire([[xF,yTop],[xF,c-22]])+wire([[xF,c+22],[xF,yBot]]),d:dot(xF,yTop)+dot(xF,yBot),
+    dv:devSVG(xF,c,-90,'FWD',false,-14,4,'end'),fl:flow('F',[[xF,yTop],[xL,yTop],[xL,yBot],[xF,yBot],[xF,yTop]])};
+}
+function svgWrap(vb,w,fl,d,dv){return `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" role="img">${w}${fl}${d}${dv}</svg>`;}
+
+function layoutMid(T){
+  const n=T.n,ys={1:[90],2:[90,250],3:[90,170,250],6:[55,105,155,205,255,305]}[n];
+  const yT=ys[0],yB=340,xN=60,xs=130,r=n===6?13:18,xd=285,xb=430,xF=510,xL=590;
+  const yR=yT+74,yLd=yR+80;
+  let w='',d='',dv='',fl='';
+  w+=wire([[xN,yT],[xN,yB],[xL,yB]]);
+  ys.forEach((y,k)=>{
+    w+=wire([[xN,y],[xs-r,y]])+wire([[xs+r,y],[xd-22,y]])+wire([[xd+22,y],[xb,y]]);
+    if(k>0){d+=dot(xN,y);if(k<n-1)d+=dot(xb,y);}
+    dv+=srcSVG(xs,y,r)+`<text class="sl" x="${xs}" y="${y-r-5}" text-anchor="middle">${T.src[k].label}</text>`;
+    dv+=devSVG(xd,y,0,T.pairs[k].dev[0],T.controlled,0,-16,'middle');
+    fl+=flow(k,[[xN,y],[xb,y],[xb,yT],[xL,yT],[xL,yB],[xN,yB],[xN,y]]);
+  });
+  if(n>1){w+=wire([[xb,ys[n-1]],[xb,yT]]);d+=dot(xb,yT);}
+  w+=wire([[xb,yT],[xL,yT]]);
+  const ld=loadSVG(xL,yT,yB,yR,yLd);w+=ld.w;dv+=ld.dv;
+  const fd=fwdSVG(xF,xL,yT,yB);w+=fd.w;d+=fd.d;dv+=fd.dv;fl+=fd.fl;
+  dv+=`<text class="sl" x="${xN-8}" y="${yB+4}" text-anchor="end">${n===2?'CT':'N'}</text>`;
+  if(n===2)dv+=`<text class="sl" x="${xs}" y="174" text-anchor="middle">centre-tapped</text><text class="sl" x="${xs}" y="189" text-anchor="middle">secondary</text>`;
+  return svgWrap('0 0 690 370',w,fl,d,dv);
+}
+function layoutB1(T){
+  const xA=220,xB=420,yP=60,yN=300,yU=112,yD=248,xS=320,yS=180,xF=520,xL=600,yR=145,yLd=228;
+  const P=T.P;let w='',d='',dv='',fl='';
+  [xA,xB].forEach(x=>{w+=wire([[x,yP],[x,yU-22]])+wire([[x,yU+22],[x,yD-22]])+wire([[x,yD+22],[x,yN]]);});
+  w+=wire([[xA,yP],[xL,yP]])+wire([[xA,yN],[xL,yN]]);
+  d+=dot(xB,yP)+dot(xB,yN)+dot(xA,yS)+dot(xB,yS);
+  w+=wire([[xA,yS],[xS-22,yS]])+wire([[xS+22,yS],[xB,yS]]);
+  dv+=srcSVG(xS,yS,22)+`<text class="sl" x="${xS}" y="${yS-30}" text-anchor="middle">vs</text>`+
+    `<text class="sl" x="${xS-30}" y="${yS-7}" text-anchor="middle">+</text><text class="sl" x="${xA+10}" y="${yS-8}">a</text><text class="sl" x="${xB-10}" y="${yS-8}" text-anchor="end">b</text>`;
+  const sc=T.controlled;
+  dv+=devSVG(xA,yU,-90,P+1,sc,-16,4,'end')+devSVG(xA,yD,-90,P+4,sc,-16,4,'end')+
+      devSVG(xB,yU,-90,P+3,sc,-16,4,'end')+devSVG(xB,yD,-90,P+2,sc,-16,4,'end');
+  fl+=flow(0,[[xS-22,yS],[xA,yS],[xA,yP],[xL,yP],[xL,yN],[xB,yN],[xB,yS],[xS+22,yS]]);
+  fl+=flow(1,[[xS+22,yS],[xB,yS],[xB,yP],[xL,yP],[xL,yN],[xA,yN],[xA,yS],[xS-22,yS]]);
+  const ld=loadSVG(xL,yP,yN,yR,yLd);w+=ld.w;dv+=ld.dv;
+  const fd=fwdSVG(xF,xL,yP,yN);w+=fd.w;d+=fd.d;dv+=fd.dv;fl+=fd.fl;
+  return svgWrap('0 0 700 350',w,fl,d,dv);
+}
+function layoutB3(T){
+  const xs=[270,370,470],yP=50,yN=310,yU=100,yD=260,ys=[140,180,220],xNn=80,xc=130,r=14,xF=560,xL=630,yR=135,yLd=218;
+  const P=T.P,sc=T.controlled;let w='',d='',dv='',fl='';
+  xs.forEach((x,k)=>{
+    w+=wire([[x,yP],[x,yU-22]])+wire([[x,yU+22],[x,yD-22]])+wire([[x,yD+22],[x,yN]]);
+    dv+=devSVG(x,yU,-90,P+T.upN[k],sc,-16,4,'end')+devSVG(x,yD,-90,P+T.loN[k],sc,-16,4,'end');
+    d+=dot(x,ys[k]);
+  });
+  w+=wire([[xs[0],yP],[xL,yP]])+wire([[xs[0],yN],[xL,yN]]);
+  d+=dot(xs[1],yP)+dot(xs[2],yP)+dot(xs[1],yN)+dot(xs[2],yN);
+  w+=wire([[xc+r,ys[0]],[xs[0],ys[0]]]);
+  w+=`<path class="w" d="M${xc+r} ${ys[1]} H${xs[0]-6} A6 6 0 0 1 ${xs[0]+6} ${ys[1]} H${xs[1]}"/>`;
+  w+=`<path class="w" d="M${xc+r} ${ys[2]} H${xs[0]-6} A6 6 0 0 1 ${xs[0]+6} ${ys[2]} H${xs[1]-6} A6 6 0 0 1 ${xs[1]+6} ${ys[2]} H${xs[2]}"/>`;
+  w+=wire([[xNn,ys[0]],[xNn,ys[2]]]);d+=dot(xNn,ys[1]);
+  ys.forEach((y,k)=>{w+=wire([[xNn,y],[xc-r,y]]);dv+=srcSVG(xc,y,r)+`<text class="sl" x="${xc+r+10}" y="${y-5}">${'abc'[k]}</text>`;});
+  dv+=`<text class="sl" x="${xNn-8}" y="${ys[1]+4}" text-anchor="end">N</text>`;
+  T.pairs.forEach((p,k)=>{const u=p.up,l=p.lo;
+    fl+=flow(k,[[xNn,ys[u]],[xs[u],ys[u]],[xs[u],yP],[xL,yP],[xL,yN],[xs[l],yN],[xs[l],ys[l]],[xNn,ys[l]],[xNn,ys[u]]]);});
+  const ld=loadSVG(xL,yP,yN,yR,yLd);w+=ld.w;dv+=ld.dv;
+  const fd=fwdSVG(xF,xL,yP,yN);w+=fd.w;d+=fd.d;dv+=fd.dv;fl+=fd.fl;
+  return svgWrap('0 0 730 350',w,fl,d,dv);
+}
+function renderSchem(){
+  $('#schemBox').innerHTML=T.key==='b1'?layoutB1(T):T.key==='b3'?layoutB3(T):layoutMid(T);
+  lastKey='';
+}
+
+/* ---------- scope ---------- */
+const buf=document.createElement('canvas');
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function colors(){return{a:cssv('--ph-a'),b:cssv('--ph-b'),c:cssv('--ph-c'),dc:cssv('--dc'),cur:cssv('--cur'),ink:cssv('--ink'),ink2:cssv('--ink-2'),grid:cssv('--grid'),rule:cssv('--rule'),gate:cssv('--gate'),panel:cssv('--panel')};}
+
+function drawStatic(){
+  const cv=$('#scope'),W=cv.clientWidth;if(!W||!SIM)return;
+  const dpr=window.devicePixelRatio||1,narrow=W<560;
+  const ph=narrow?104:122,gap=14,top=8,axis=22,H=top+4*ph+3*gap+axis;
+  cv.style.height=H+'px';cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  buf.width=cv.width;buf.height=cv.height;
+  const c=buf.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
+  const col=colors(),x0=narrow?44:56,x1=W-10,M=SIM.M;
+  const X=j=>x0+(j+1)/M*(x1-x0);
+  const ref=T.ref;
+  const panels=[
+    {title:T.key==='b3'?'Phase voltages':T.src.length>1?'Supply voltages':'Supply voltage',
+     traces:T.src.map((s,q)=>({data:SIM.SRC[q],color:s.color,dash:s.dash,w:1.5,label:s.label}))},
+    {title:'Output voltage',fire:true,
+     traces:[...SIM.CAND.map(d=>({data:d,color:'ink2',w:1,alpha:.4,dash:1})),{data:SIM.VO,color:'dc',w:2.3,label:'vo'}],
+     hline:{v:SIM.Vdc,label:'Vdc = '+fmt(SIM.Vdc)+' V',color:'dc'}},
+    {title:'Currents',traces:[{data:SIM.IO,color:'cur',w:2.6,label:'io load'},{data:SIM.IA,color:'a',w:1.3,label:T.bridge?'ia supply':'i1 winding'}]},
+    {title:'Voltage across '+ref,traces:[{data:SIM.VD,color:'ink',w:1.7,label:'v'+ref}],
+     hline:SIM.piv>0?{v:-SIM.piv,label:'PIV = '+fmt(SIM.piv)+' V',color:'ink2'}:null}
+  ];
+  c.lineJoin='round';
+  panels.forEach((p,pi)=>{
+    const yT=top+pi*(ph+gap),yB=yT+ph;
+    let mn=0,mx=0;
+    p.traces.forEach(t=>{for(let j=0;j<M;j++){const v=t.data[j];if(v>mx)mx=v;if(v<mn)mn=v;}});
+    if(mx-mn<1e-9){mx=1;mn=-1;}
+    const dmx=mx,dmn=mn;
+    const yHi=yT+26,yLo=yB-(p.fire&&T.controlled?6:8);
+    if(dmn>-1e-6)mn=-(mx-mn)*.04;
+    const Y=v=>yLo-(v-mn)/(mx-mn)*(yLo-yHi);
+    p.Y=Y;p.yT=yT;p.yB=yB;
+    c.lineWidth=1;c.setLineDash([]);c.globalAlpha=1;
+    c.strokeStyle=col.grid;c.beginPath();
+    for(let q=1;q<8;q++){const x=Math.round(x0+q/8*(x1-x0))+.5;c.moveTo(x,yT);c.lineTo(x,yB);}
+    c.stroke();
+    c.strokeStyle=col.rule;c.strokeRect(x0+.5,yT+.5,x1-x0,ph);
+    c.beginPath();const yz=Math.round(Y(0))+.5;c.moveTo(x0,yz);c.lineTo(x1,yz);c.stroke();
+    c.fillStyle=col.ink2;c.font='500 11px Barlow, sans-serif';c.textAlign='right';c.textBaseline='middle';
+    const ticks=[[dmx,Y(dmx)],[0,Y(0)]];if(dmn<-1e-6)ticks.push([dmn,Y(dmn)]);
+    let lastY=-99;ticks.sort((a,b)=>a[1]-b[1]).forEach(([v,y])=>{if(y-lastY>12){c.fillText(fmt(v,Math.abs(v)<10&&v!==0?2:0),x0-6,y);lastY=y;}});
+    if(p.hline){c.strokeStyle=col[p.hline.color];c.setLineDash([6,4]);c.lineWidth=1.2;c.beginPath();const y=Y(p.hline.v);c.moveTo(x0,y);c.lineTo(x1,y);c.stroke();c.setLineDash([]);}
+    p.traces.forEach(t=>{
+      c.strokeStyle=col[t.color];c.lineWidth=t.w;c.globalAlpha=t.alpha||1;c.setLineDash(t.dash?[4,4]:[]);
+      c.beginPath();for(let j=0;j<M;j++){const x=X(j),y=Y(t.data[j]);j?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();
+    });
+    c.globalAlpha=1;c.setLineDash([]);
+    // title + legend
+    c.textAlign='left';c.textBaseline='alphabetic';
+    let lx=x0+8;const ly=yT+16;
+    c.font='600 12.5px Barlow, sans-serif';
+    const items=p.traces.filter(t=>t.label);
+    c.font='500 11.5px Barlow, sans-serif';
+    let wTot=0;items.forEach(t=>wTot+=c.measureText(t.label).width+24);
+    if(p.hline)wTot+=c.measureText(p.hline.label).width+24;
+    c.font='600 12.5px Barlow, sans-serif';
+    wTot+=c.measureText(p.title).width+14;
+    c.fillStyle=col.panel;c.globalAlpha=.88;c.fillRect(x0+2,yT+2,Math.min(wTot,x1-x0-4),20);c.globalAlpha=1;
+    c.fillStyle=col.ink;c.fillText(p.title,lx,ly);lx+=c.measureText(p.title).width+14;
+    c.font='500 11.5px Barlow, sans-serif';
+    const leg=(label,color,dash,w)=>{
+      if(lx>x1-40)return;
+      c.strokeStyle=color;c.lineWidth=w;c.setLineDash(dash?[3,3]:[]);c.beginPath();c.moveTo(lx,ly-4);c.lineTo(lx+14,ly-4);c.stroke();c.setLineDash([]);
+      c.fillStyle=col.ink2;c.fillText(label,lx+18,ly);lx+=c.measureText(label).width+28;
+    };
+    items.forEach(t=>leg(t.label,col[t.color],t.dash,2));
+    if(p.hline)leg(p.hline.label,col[p.hline.color],1,1.4);
+    // firing marks
+    if(p.fire&&T.controlled){
+      c.fillStyle=col.gate;c.font='600 10.5px Barlow, sans-serif';c.textAlign='center';
+      SIM.fires.forEach((f,q)=>{for(let cy=0;cy<2;cy++){
+        const th=f+cy*TAU;if(th<SIM.dth||th>2*TAU)continue;
+        const x=x0+th/(2*TAU)*(x1-x0);
+        c.beginPath();c.moveTo(x,yB-1);c.lineTo(x-4.5,yB-9);c.lineTo(x+4.5,yB-9);c.closePath();c.fill();
+        if(T.pairs.length<=3||!narrow)c.fillText(T.pairs[q].gates.join('/'),x,yB-12);
+      }});
+      c.textAlign='left';
+    }
+  });
+  c.fillStyle=col.ink2;c.font='500 11px Barlow, sans-serif';c.textAlign='center';c.textBaseline='alphabetic';
+  for(let q=0;q<=8;q++){if(narrow&&q%2)continue;c.fillText(q*90+'°',x0+q/8*(x1-x0),H-6);}
+  LAYOUT={x0,x1,panels,W,H,dpr,X};
+}
+
+function drawFrame(){
+  const cv=$('#scope'),ctx=cv.getContext('2d');
+  ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);ctx.drawImage(buf,0,0);
+  const {dpr,panels,X}=LAYOUT;ctx.setTransform(dpr,0,0,dpr,0,0);
+  const j=Math.min(SIM.M-1,Math.max(0,Math.floor(S.cursor))),x=X(j),col=colors();
+  ctx.strokeStyle=col.ink;ctx.globalAlpha=.55;ctx.lineWidth=1;ctx.beginPath();
+  ctx.moveTo(x,panels[0].yT);ctx.lineTo(x,panels[3].yB);ctx.stroke();ctx.globalAlpha=1;
+  const pt=(p,v,color)=>{ctx.fillStyle=color;ctx.strokeStyle=col.panel;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,p.Y(v),4,0,TAU);ctx.fill();ctx.stroke();};
+  pt(panels[0],SIM.SRC[0][j],col[T.src[0].color]);
+  pt(panels[1],SIM.VO[j],col.dc);
+  pt(panels[2],SIM.IO[j],col.cur);
+  pt(panels[3],SIM.VD[j],col.ink);
+}
+
+/* ---------- live state ---------- */
+function updLive(){
+  const j=Math.min(SIM.M-1,Math.max(0,Math.floor(S.cursor)));
+  const a=SIM.ACT[j],fw=SIM.FW[j];
+  const on=new Set(a>=0?T.pairs[a].dev:[]);if(fw)on.add('FWD');
+  const thm=mod((j+1)*SIM.dth,TAU);
+  const fire=new Set();
+  if(T.controlled)SIM.fires.forEach((f,q)=>{if(mod(thm-f,TAU)<14*D2R)T.pairs[q].gates.forEach(g=>fire.add(g));});
+  const key=[...on].join()+'|'+[...fire].join();
+  if(key!==lastKey){
+    lastKey=key;
+    $$('#schemBox .dev').forEach(g=>{const l=g.dataset.l;g.classList.toggle('on',on.has(l));g.classList.toggle('fire',fire.has(l));});
+    const fk=fw?'F':String(a);
+    $$('#schemBox .flow').forEach(f=>f.classList.toggle('show',f.dataset.k===fk));
+    $('#lOn').textContent=on.size?[...on].join(', '):'none';
+  }
+  $('#lTh').textContent=fmt(thm/D2R,0)+'°';
+  $('#lSrc').textContent=fmt(SIM.SRC[0][j])+' V';
+  $('#lVo').textContent=fmt(SIM.VO[j])+' V';
+  $('#lIo').textContent=fmt(SIM.IO[j],2)+' A';
+  $('#lDv').textContent=fmt(SIM.VD[j])+' V';
+}
+
+/* ---------- metrics ---------- */
+function updMetrics(){
+  const a=SIM.alpha;
+  let vt=null,mode='';
+  if(S.L===0||S.fwd||(!T.controlled&&T.key!=='mid1')){vt=vdcR(T,a);mode='R';}
+  else if(SIM.cont){vt=T.Vdc0*Math.cos(a);mode='C';}
+  const m=[
+    ['Vdc (average)',fmt(SIM.Vdc),'V'],['Vrms',fmt(SIM.Vrms),'V'],
+    ['Idc',fmt(SIM.Idc,2),'A'],['Irms',fmt(SIM.Irms,2),'A'],
+    ['Form factor',isFinite(SIM.FF)?fmt(SIM.FF,3):'—',''],['Ripple factor',isFinite(SIM.RF)?fmt(SIM.RF,3):'—',''],
+    ['Ripple frequency',String(T.p*S.f),'Hz'],['Peak-to-peak ripple',fmt(SIM.vpp),'V'],
+    ['PIV of '+T.ref,fmt(SIM.piv),'V'],[T.ref+' conducts',fmt(SIM.condDeg,0),'° / cycle'],
+    ['Load current',SIM.cont?'Continuous':'Discontinuous',''],
+    ['Ideal Vdc',vt===null?'—':fmt(vt),vt===null?'':'V']
+  ];
+  $('#metrics').innerHTML=m.map(([l,v,u])=>`<div><span>${l}</span><b>${v}${u?` <small>${u}</small>`:''}</b></div>`).join('');
+  let txt;
+  if(vt===null)txt=`<b>Ideal Vdc:</b> with an RL load and discontinuous current, Vdc depends on the extinction angle β, so the figure above is from the simulation.`;
+  else{
+    const why=mode==='C'?'continuous load current':(T.controlled?(S.fwd&&S.L>0?'freewheeling diode clamps vo at zero':'resistive load'):'uncontrolled');
+    txt=`<b>Ideal Vdc:</b> ${formula(T,a,mode)} = ${fmt(vt)} V (${why}).`;
+  }
+  txt+=` Vm is the peak phase voltage; device drops and source inductance are ignored.`;
+  $('#theory').innerHTML=txt;
+  $('#caption').textContent=CAP[T.key]+(T.controlled?' '+CAP_CTRL[T.key]:'');
+  $('#lSrcL').textContent=T.src[0].label;
+  $('#lDvL').textContent='v'+T.ref;
+}
+
+/* ---------- controls ---------- */
+function sync(){
+  $$('#phaseSeg button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.p===S.phase)));
+  $$('#freq button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.f===S.f)));
+  $$('[data-sub]').forEach(s=>s.textContent=SUB[S.phase][s.dataset.sub]);
+  $$('input[name=topo]').forEach(r=>r.checked=r.value===S.topo);
+  $('#oVm').textContent=S.Vm+' V';$('#oR').textContent=fmt(S.R,1)+' Ω';$('#oL').textContent=S.L+' mH';$('#oA').textContent=S.alpha+'°';
+  const hw=S.topo==='half'||S.topo==='full';
+  $('#scrRow').classList.toggle('hide',!hw);
+  const ctrl=S.topo==='thy'||(hw&&S.scr);
+  $('#alphaRow').classList.toggle('off',!ctrl);$('#alpha').disabled=!ctrl;
+}
+let pending=false;
+function schedule(){if(pending)return;pending=true;requestAnimationFrame(()=>{pending=false;recompute();});}
+function recompute(){
+  T=buildTopo();SIM=simulate(T);
+  if(S.cursor>=SIM.M)S.cursor=0;
+  renderSchem();drawStatic();updMetrics();
+  if(LAYOUT){drawFrame();updLive();}
+}
+function setPlaying(p){S.playing=p;$('#play').textContent=p?'Pause':'Play';}
+
+$$('#phaseSeg button').forEach(b=>b.addEventListener('click',()=>{S.phase=+b.dataset.p;sync();recompute();}));
+$$('#freq button').forEach(b=>b.addEventListener('click',()=>{S.f=+b.dataset.f;sync();recompute();}));
+$$('input[name=topo]').forEach(r=>r.addEventListener('change',()=>{S.topo=r.value;sync();recompute();}));
+[['Vm','Vm'],['R','R'],['L','L'],['alpha','alpha']].forEach(([id,k])=>$('#'+id).addEventListener('input',e=>{S[k]=+e.target.value;sync();schedule();}));
+$('#scr').addEventListener('change',e=>{S.scr=e.target.checked;sync();recompute();});
+$('#fwd').addEventListener('change',e=>{S.fwd=e.target.checked;sync();recompute();});
+$('#play').addEventListener('click',()=>setPlaying(!S.playing));
+$('#speed').addEventListener('change',e=>S.speed=+e.target.value);
+
+const cv=$('#scope');let drag=false;
+function setFromX(e){if(!LAYOUT)return;const r=cv.getBoundingClientRect();let u=(e.clientX-r.left-LAYOUT.x0)/(LAYOUT.x1-LAYOUT.x0);u=Math.max(0,Math.min(1,u));S.cursor=u*(SIM.M-1);}
+cv.addEventListener('pointerdown',e=>{drag=true;cv.setPointerCapture(e.pointerId);setPlaying(false);setFromX(e);});
+cv.addEventListener('pointermove',e=>{if(drag)setFromX(e);});
+cv.addEventListener('pointerup',()=>drag=false);
+cv.addEventListener('pointercancel',()=>drag=false);
+cv.addEventListener('keydown',e=>{
+  if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;e.preventDefault();setPlaying(false);
+  const st=(e.shiftKey?15:1)*SIM.N/360*(e.key==='ArrowLeft'?-1:1);S.cursor=mod(S.cursor+st,SIM.M);
+});
+
+new ResizeObserver(()=>{drawStatic();}).observe(cv.parentElement);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>drawStatic());
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>drawStatic());
+
+let last=performance.now();
+function tick(now){
+  const dt=Math.min(.1,(now-last)/1000);last=now;
+  if(SIM&&S.playing)S.cursor=(S.cursor+dt*SIM.M/6*S.speed)%SIM.M;
+  if(SIM&&LAYOUT){drawFrame();updLive();}
+  requestAnimationFrame(tick);
+}
+sync();setPlaying(S.playing);recompute();requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
