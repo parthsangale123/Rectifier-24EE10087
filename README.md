@@ -1,1 +1,2 @@
-# parthsangale123.github.io-rectifier24EE10087
+Created by Parth Sangale 
+24EE10087
